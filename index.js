@@ -93,6 +93,68 @@ app.delete("/problem", async (req, res) => {
   }
 });
 
+async function register(name, email, password) {
+  const { data, error } = await supabase.from("participant").insert([
+    {
+      participant_name: name,
+      participant_email: email,
+      password: password,
+    },
+  ]);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+// going to introduce hashing,
+//  currently inserts hard coded details
+app.get("/register", async (req, res) => {
+  let name = "Evan";
+  let email = "evantheterrible@uic.edu";
+  let password = "hashing next";
+
+  try {
+    const { data, error } = await supabase
+      .from("participant")
+      .select("participant_id, participant_name, participant_email, password")
+      .eq("participant_email", email);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (data && data.length > 0) {
+      res.json({ message: "Participant exists", participant: data });
+    } else {
+      // register after checking in db
+      await register(name, email, password);
+      res.json(
+        `Registered ${name} with username and password -> ${email}, ${password}`
+      );
+    }
+  } catch (err) {
+    res.status(500).json({ error: "An unexpected error occurred" });
+  }
+});
+
+// for development to see all users
+app.get("/users", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("participant")
+      .select("participant_id, participant_name, participant_email");
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: "An unexpected error occurred" });
+  }
+});
+
 // Used for local testing
 // app.get("/peek_dotenv", (req, res) => {
 //   console.log(
