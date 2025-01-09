@@ -251,13 +251,10 @@ async function register(name, email, password) {
   }
 }
 
-// going to introduce hashing,
-//  currently inserts hard coded details
-app.get("/register", async (req, res) => {
-  let name = "Ivan";
-  let email = "itorr4@uic.edu";
-  let password = "i-am-password";
+app.post("/register", async (req, res) => {
+  const { firstName, lastName, email, password } = req.body;
 
+  // first check if already registered
   try {
     const { data, error } = await supabase
       .from("participant")
@@ -272,10 +269,9 @@ app.get("/register", async (req, res) => {
       res.json({ message: "Participant exists", participant: data });
     } else {
       // register after checking in db
+      let name = firstName + " " + lastName;
       await register(name, email, password);
-      res.json(
-        `Registered ${name} with username and password -> ${email}, ${password}`
-      );
+      res.json(`Registered ${name} with username -> ${email}`);
     }
   } catch (err) {
     res.status(500).json({ error: "An unexpected error occurred" });
