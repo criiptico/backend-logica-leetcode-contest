@@ -162,7 +162,6 @@ app.delete("/logica-leetcode/v1/problem/:id", async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 // NEEDS TESTING
 // app.get("/logica-leetcode/v1/contest/problems", async (req, res) => {
 //   const { semester: semester, year: year } = req.query;
@@ -235,9 +234,6 @@ app.delete("/logica-leetcode/v1/problem/:id", async (req, res) => {
 //   }
 // });
 
-// // Ivan's
-// app.get("/logica-leetcode/v1/contest/groups", async (req, res) => {});
-=======
 async function register(name, email, password) {
   const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -360,7 +356,6 @@ app.get("/login", async (req, res) => {
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 });
->>>>>>> origin/HEAD
 
 // Used for local testing
 // app.get("/peek-dotenv", (req, res) => {
