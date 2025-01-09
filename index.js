@@ -189,11 +189,7 @@ app.get("/delete-user", async (req, res) => {
 });
 
 app.get("/login", async (req, res) => {
-  // let email = "itorr4@uic.edu";
-  // let password = "i-am-password";
-
-  let email = "aquiro20@uic.edu";
-  let password = "_the_dummy_password_";
+  const { email, password } = req.body;
 
   try {
     // Fetch user by email
@@ -328,10 +324,7 @@ async function reset_password(email, password) {
 }
 
 app.get("/change-password", async (req, res) => {
-  // Used for testing, use body payload in production
-  let email = "aquiro20@uic.edu";
-  let new_password = "what_is_going_on_here";
-  let one_time_password = "145046"; // Must change after each new forgot-password request is made
+  const { email, new_password, one_time_password } = req.body;
 
   try {
     // Fetch user by email
