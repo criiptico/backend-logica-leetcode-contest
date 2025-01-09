@@ -60,6 +60,29 @@ async function sendOTPEmail(email, otp) {
   console.log(`Message sent: ${info.messageId}`);
 }
 
+app.post("/change-password", async (req, res) => {
+  const { email, opt, newPassword } = req.body;
+
+  // have logic in try block, for now this is just template code
+
+  // determine if email and opt match value in db,
+  // handle when get to it
+
+  // update new password
+  const newHashPassword = await bcrypt.hash(newPassword, 10);
+
+  const { error: updateError } = await supabase
+    .from("participant")
+    .update({ password: newHashPassword })
+    .eq("participant_email".email);
+
+  if (updateError) {
+    return res.status(500).json({ error: "Error updating password" });
+  }
+
+  res.status(200).json({ message: "Password updated successfully" });
+});
+
 app.post("/logica-leetcode/v1/generate-otp/:role", async (req, res) => {
   const { email } = req.body;
   const { role: role } = req.params;
