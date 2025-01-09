@@ -32,9 +32,6 @@ app.get("/logica-leetcode/v1/", (req, res) => {
   res.send("Welcome to the LOGICA Leetcode Contest Backend API");
 });
 
-// RESTful API calls
-// ----
-
 app.get("/logica-leetcode/v1/problems", async (req, res) => {
   const { data, error } = await supabase.from("problem").select();
   if (error) {
@@ -127,13 +124,10 @@ async function register(name, email, password) {
   }
 }
 
-// going to introduce hashing,
-//  currently inserts hard coded details
-app.get("/register", async (req, res) => {
-  let name = "Adrian";
-  let email = "aquiro20@uic.edu";
-  let password = "_the_dummy_password_";
+app.post("/register", async (req, res) => {
+  const { firstName, lastName, email, password } = req.body;
 
+  // first check if already registered
   try {
     const { data, error } = await supabase
       .from("participant")
@@ -148,10 +142,9 @@ app.get("/register", async (req, res) => {
       res.json({ message: "Participant exists", participant: data });
     } else {
       // register after checking in db
+      let name = firstName + " " + lastName;
       await register(name, email, password);
-      res.json(
-        `Registered ${name} with username and password -> ${email}, ${password}`
-      );
+      res.json(`Registered ${name} with username -> ${email}`);
     }
   } catch (err) {
     res.status(500).json({ error: "An unexpected error occurred" });
