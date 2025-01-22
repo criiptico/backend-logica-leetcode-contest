@@ -16,8 +16,15 @@ configDotenv({ path: ".env" });
 const app = express();
 const port = 3000;
 
+app.use(cookieParser());
+
 // Used for local testing
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://127.0.0.1:5500", // Frontend domain
+    credentials: true, // Allows sending cookies
+  })
+);
 
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded());
@@ -25,57 +32,10 @@ app.use(bodyParser.urlencoded());
 // parse application/json
 app.use(bodyParser.json());
 
-app.use(cookieParser());
-
 const supabase = createClient(
   process.env.SB_PROJECT_URL,
   process.env.SB_ANON_PUBLIC_KEY
 );
-
-// Middleware to check if the user is authenticated
-const protectRoute = async (req, res, next) => {
-  const token = req.cookies.authToken; // Get the token from the cookie
-  console.log("In protectedRoutes middleware");
-
-  if (!token) {
-    return res.status(401).json({ error: "Authentication token missing" });
-  }
-
-  try {
-    // Verify the token
-    const decoded = jwt.verify(token, process.env.JWT_KEY);
-
-    // Attach user info to the request object for further use
-    req.user = decoded;
-    next(); // Allow the request to proceed to the protected route
-  } catch (err) {
-    return res.status(401).json({ error: "Invalid or expired token" });
-  }
-};
-
-// Protected route to get leaderboard or user-related data
-app.get("/protected", protectRoute, async (req, res) => {
-  try {
-    // Now you can access req.user which contains the decoded JWT payload
-    const { email, name } = req.user;
-    const { data, error } = await supabase
-      .from("participant")
-      .select("participant_id, participant_name, participant_email")
-      .eq("participant_email", email);
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-
-    console.log("Proected content successful");
-    res.json({
-      message: "Protected content, user has logged in successfully",
-      user: data,
-    });
-  } catch (err) {
-    res.status(500).json({ error: "An unexpected error occurred" });
-  }
-});
 
 app.get("/logica-leetcode/v1/", (req, res) => {
   res.send("Welcome to the LOGICA Leetcode Contest Backend API");
@@ -239,13 +199,65 @@ app.get("/delete-user", async (req, res) => {
   }
 });
 
+// Middleware to check if the user is authenticated
+const protectRoute = async (req, res, next) => {
+  const token = req.cookies.authToken; // Get the token from the cookie
+  console.log("In protectedRoutes middleware");
+
+  if (!token) {
+    return res.status(401).json({ error: "Authentication token missing" });
+  }
+
+  try {
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_KEY);
+
+    // Attach user info to the request object for further use
+    req.user = decoded;
+    next(); // Allow the request to proceed to the protected route
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+};
+
+// Protected route to get leaderboard or user-related data
+app.get("/protected", protectRoute, async (req, res) => {
+  try {
+    // Now you can access req.user which contains the decoded JWT payload
+    const { email, name } = req.user;
+    const { data, error } = await supabase
+      .from("participant")
+      .select("participant_id, participant_name, participant_email")
+      .eq("participant_email", email);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    console.log("Proected content successful");
+    res.json({
+      message: "Protected content, user has logged in successfully",
+      user: data,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "An unexpected error occurred" });
+  }
+});
+
 async function setUserSession(token, email) {
-  // handle error in the function,
-  // also how can data be used?
-  const { data, error } = await supabase
-    .from("participant")
-    .update({ session_token: token })
-    .eq("participant_email", email);
+  try {
+    // how can data be used?
+    const { data, error } = await supabase
+      .from("participant")
+      .update({ session_token: token })
+      .eq("participant_email", email);
+
+    if (error) {
+      throw new Error("Failed to update session token");
+    }
+  } catch (err) {
+    console.error("Error in setUserSession:", err.message);
+  }
 }
 
 app.post("/login", async (req, res) => {
@@ -292,6 +304,10 @@ app.post("/login", async (req, res) => {
     res.cookie("authToken", token, {
       httpOnly: true, // Prevents JavaScript access to cookies
       maxAge: 60 * 5000, // 5 minute
+      path: "/login.html",
+      secure: false,
+      sameSite: "Strict",
+      domain: "127.0.0.1",
     });
 
     // Send the success response after setting the cookie
