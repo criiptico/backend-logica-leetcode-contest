@@ -2,6 +2,7 @@ import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import speakeasy from "speakeasy";
 import nodemailer from "nodemailer";
+import cron from "node-cron";
 import bodyParser from "body-parser";
 import { configDotenv } from "dotenv";
 
@@ -28,11 +29,77 @@ const supabase = createClient(
   process.env.SB_ANON_PUBLIC_KEY
 );
 
-app.get("/logica-leetcode/v1/", (req, res) => {
+app.get("/", (req, res) => {
   res.send("Welcome to the LOGICA Leetcode Contest Backend API");
 });
 
-app.get("/logica-leetcode/v1/problems", async (req, res) => {
+app.get("/:contestID/contest-state", async (req, res) => {
+  const { contestID } = req.params;
+
+  const { data, error } = await supabase
+    .from("contest")
+    .select("contest_id, contest_state")
+    .eq("contest_id", contestID);
+
+  if (error) {
+    res.send("An unexpected error has occured");
+  } else {
+    res.json(data);
+  }
+});
+
+app.put("/contest", async (req, res) => {
+  // Set up the timestamp type (start & end) in this way 'YYYY-MM-DD HH:MI:SS' HH is 24-hr
+  const { contest_name, semester, year, contest_state, start, end } = req.body;
+
+  if (!contest_name || !semester || !year || !contest_state || !start || !end) {
+    res.send({ error: "Must include all key value pairs." });
+  }
+
+  const { data, error } = await supabase.from("contest").insert([
+    {
+      contest_name: contest_name,
+      semester: semester,
+      year: year,
+      contest_state: contest_state,
+      start: start,
+      end: end,
+    },
+  ]);
+
+  if (error) {
+    res.json({ error: "An error occured", message: error });
+  } else {
+    res.json({ message: "Successfully created a contest." });
+  }
+});
+
+app.get("/contest", async (req, res) => {
+  const { data, error } = await supabase.from("contest").select();
+
+  if (error) {
+    res.send({ error: "An error occured", message: error });
+  } else {
+    res.json(data);
+  }
+});
+
+app.get("/contest/:contestID", async (req, res) => {
+  const { contestID } = req.params;
+
+  const { data, error } = await supabase
+    .from("contest")
+    .select()
+    .eq("contest_id", contestID);
+
+  if (error) {
+    res.send({ error: "An error occured", message: error });
+  } else {
+    res.json(data);
+  }
+});
+
+app.get("/problems", async (req, res) => {
   const { data, error } = await supabase.from("problem").select();
   if (error) {
     console.log(error.message);
@@ -42,7 +109,7 @@ app.get("/logica-leetcode/v1/problems", async (req, res) => {
   }
 });
 
-app.put("/logica-leetcode/v1/problem", async (req, res) => {
+app.put("/problem", async (req, res) => {
   // Payload must contain all of the key-value pairs to add a problem to the database
   const {
     problem_name: problem_name,
@@ -69,13 +136,13 @@ app.put("/logica-leetcode/v1/problem", async (req, res) => {
       res.send("Success");
     }
   } else {
-    res.send({
+    res.status(400).send({
       error: "Body must contain all key-value pairs.",
     });
   }
 });
 
-app.delete("/logica-leetcode/v1/problem/:id", async (req, res) => {
+app.delete("/problem/:id", async (req, res) => {
   // const { problem_id: problem_id } = req.body;
   const { id: problem_id } = req.params;
 
@@ -88,14 +155,14 @@ app.delete("/logica-leetcode/v1/problem/:id", async (req, res) => {
 
       if (error) {
         console.log(error.message);
-        res.send({
+        res.status(500).send({
           Error: "An error has occured, please check the console log.",
         });
       } else {
         res.send({ Result: "Success" });
       }
     } else {
-      res.send({
+      res.status(400).send({
         error: "Body must contain all key-value pairs.",
       });
     }
@@ -253,7 +320,7 @@ async function sendOTPEmail(email, otp) {
   console.log(`Message sent: ${info.messageId}`);
 }
 
-app.post("/logica-leetcode/v1/forgot-password/:role", async (req, res) => {
+app.post("/forgot-password/:role", async (req, res) => {
   const { email } = req.body;
   const { role: role } = req.params;
 
@@ -369,7 +436,42 @@ app.get("/change-password", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(
-    `App is listening on port ${port}\n http://localhost:3000/logica-leetcode/v1/`
-  );
+  console.log(`App is listening on port ${port}\n http://localhost:${port}/`);
 });
+
+// startContest should make a request to the database to change the state of the current contest
+const startContest = async () => {
+  const contest_id = "70359776-26b3-4ecf-9937-ca7cc7d4245e"; // Need to change this in the endContest function too
+  console.log("Contest started.");
+  const { data, error } = await supabase
+    .from("contest")
+    .update([{ contest_state: true }])
+    .eq("contest_id", contest_id);
+
+  if (error) {
+    res.send("An unexpected error has occured");
+  } else {
+    res.send(`Contest ${contest_id} has been successfully set to true.`);
+  }
+};
+
+// endContest should make a request to the database to change the state of the current contest
+const endContest = async () => {
+  const contest_id = "70359776-26b3-4ecf-9937-ca7cc7d4245e"; // Need to change this in the startContest function too
+  const { data, error } = await supabase
+    .from("contest")
+    .update([{ contest_state: false }])
+    .eq("contest_id", contest_id);
+
+  if (error) {
+    res.send("An unexpected error has occured");
+  } else {
+    res.send(`Contest ${contest_id} has been successfully set to false.`);
+  }
+};
+
+// Would require backend reset.
+// * * * * * => * (minute) * (hour in 24hrs [0:00 midnight]) * (day of the month) * (month) * (day of the week)
+// cron.schedule("42 21 * * 5", startContest);
+// cron.schedule("44 21 * * 5", endContest);
+// https://crontab.cronhub.io/
